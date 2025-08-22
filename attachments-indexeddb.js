@@ -1,5 +1,5 @@
 (function(){
-  const DB_NAME = 'planner_inline_attachments'; const STORE = 'files'; let dbPromise = null;
+  const DB_NAME = 'planner_inline_attachments_v2'; const STORE = 'files'; let dbPromise = null;
   function openDB(){ if(dbPromise) return dbPromise; dbPromise = new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME,1); req.onupgradeneeded = ()=>{ req.result.createObjectStore(STORE); };
     req.onsuccess = ()=>resolve(req.result); req.onerror = ()=>reject(req.error); }); return dbPromise; }

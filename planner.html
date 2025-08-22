@@ -11,23 +11,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0b0b0b">
-  <style>
-    .date-label{font-weight:800; font-size:16px; letter-spacing:.2px}
-    .toprow{display:flex; align-items:center; justify-content:space-between; border-bottom:1px dashed rgba(0,0,0,.15); padding-bottom:8px; margin-bottom:12px}
-    .editor{min-height:120px; background:#fff; border:1px solid #d8d8d8; border-radius:12px; padding:10px}
-    .editor ul{margin:0; padding-left:24px}
-    .editor li{min-height:22px}
-    .inline-file{display:inline-block; padding:2px 8px; border:1px dashed #cfcfcf; border-radius:8px; background:#fff; text-decoration:none; color:#333; font-weight:700}
-    .inline-thumb{height:64px; vertical-align:middle; border:1px solid #d8d8d8; border-radius:8px; background:#fff; padding:2px; cursor:pointer}
-    @media (prefers-color-scheme: dark){
-      .editor{background:#0f0f0f; border-color:#2a2a2a; color:#eee}
-      .inline-file{background:#0f0f0f; border-color:#2a2a2a; color:#ddd}
-      .inline-thumb{background:#0f0f0f; border-color:#2a2a2a}
-    }
-  </style>
 </head>
 <body class="planner-body">
-  <div class="topbar" style="background:transparent;border:0">
+  <div class="topbar">
     <h1 class="title-common title">OAXACA 2025</h1>
     <div class="actions">
       <a href="index.html" class="link-white">Torna all'inizio</a>
@@ -44,7 +30,7 @@
     </div>
   </div>
 
-  <!-- Viewer overlay -->
+  <!-- Viewer -->
   <div class="viewer" id="viewer" aria-hidden="true">
     <div class="inner">
       <div class="vtoolbar">

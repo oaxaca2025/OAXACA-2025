@@ -3,7 +3,7 @@
   const $$ = (s, r=document)=>Array.from(r.querySelectorAll(s));
   const root = $('#planner');
 
-  /* ===== SFONDO ===== */
+  /* ===== Shared background persistence ===== */
   (function(){
     const BG='plannerBackground', MODE='plannerBgMode', POSX='plannerBgX', POSY='plannerBgY';
     const body=document.body, menu=$('#plannerMenu');
@@ -11,29 +11,32 @@
     const fitState=$('#plFitState'), moveState=$('#plMoveState');
     let moving=false, startX=0, startY=0, baseX=parseInt(localStorage.getItem(POSX)||'50'), baseY=parseInt(localStorage.getItem(POSY)||'50');
     function applyBg(){
-      const saved=localStorage.getItem(BG); if(saved) body.style.backgroundImage='url('+saved+')';
-      const mode=localStorage.getItem(MODE)||'cover'; body.style.backgroundSize=mode; body.style.backgroundPosition=baseX+'% '+baseY+'%';
-      if(fitState) fitState.textContent = mode==='cover'?'Riempie':'Contiene';
-      if(moveState) moveState.textContent = moving?'On':'Off';
+      try{
+        const saved=localStorage.getItem(BG); if(saved) body.style.backgroundImage='url('+saved+')';
+        const mode=localStorage.getItem(MODE)||'cover'; body.style.backgroundSize=mode; body.style.backgroundPosition=baseX+'% '+baseY+'%';
+        if(fitState) fitState.textContent = mode==='cover'?'Riempie':'Contiene';
+        if(moveState) moveState.textContent = moving?'On':'Off';
+      }catch(e){ /* ignore */ }
     }
+    addEventListener('pageshow', applyBg);
     applyBg();
     if(btn){ btn.addEventListener('click', ()=>menu.classList.toggle('open')); document.addEventListener('click', e=>{ if(!menu.contains(e.target)) menu.classList.remove('open'); }); }
     $('#plUpload')?.addEventListener('click', ()=>bgInput?.click());
     bgInput?.addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
-      r.onload=ev=>{ const img=ev.target.result; body.style.backgroundImage='url('+img+')'; localStorage.setItem(BG,img); }; r.readAsDataURL(f); });
+      r.onload=ev=>{ const img=ev.target.result; document.body.style.backgroundImage='url('+img+')'; localStorage.setItem(BG,img); }; r.readAsDataURL(f); });
     $('#plFit')?.addEventListener('click', ()=>{ const cur=localStorage.getItem(MODE)||'cover'; const nxt=cur==='cover'?'contain':'cover'; localStorage.setItem(MODE,nxt); applyBg(); });
     $('#plMove')?.addEventListener('click', ()=>{ moving=!moving; applyBg(); });
-    function onDown(e){ if(!moving) return; startX=e.clientX; startY=e.clientY; body.dataset.drag='1'; }
-    function onMove(e){ if(!moving||!body.dataset.drag) return; const dx=e.clientX-startX, dy=e.clientY-startY;
-      const nx=Math.max(0,Math.min(100, baseX+dx*0.1)); const ny=Math.max(0,Math.min(100, baseY+dy*0.1)); body.style.backgroundPosition=nx+'% '+ny+'%'; }
-    function onUp(){ if(!moving) return; delete body.dataset.drag; const pos=getComputedStyle(body).backgroundPosition.split(' ');
+    function onDown(e){ if(!moving) return; startX=e.clientX; startY=e.clientY; document.body.dataset.drag='1'; }
+    function onMove(e){ if(!moving||!document.body.dataset.drag) return; const dx=e.clientX-startX, dy=e.clientY-startY;
+      const nx=Math.max(0,Math.min(100, baseX+dx*0.1)); const ny=Math.max(0,Math.min(100, baseY+dy*0.1)); document.body.style.backgroundPosition=nx+'% '+ny+'%'; }
+    function onUp(){ if(!moving) return; delete document.body.dataset.drag; const pos=getComputedStyle(document.body).backgroundPosition.split(' ');
       baseX=Math.round(parseFloat(pos[0])); baseY=Math.round(parseFloat(pos[1])); localStorage.setItem(POSX,baseX); localStorage.setItem(POSY,baseY); applyBg(); }
-    body.addEventListener('mousedown', onDown); body.addEventListener('mousemove', onMove); body.addEventListener('mouseup', onUp); body.addEventListener('mouseleave', onUp);
-    body.addEventListener('touchstart', e=>onDown(e.touches[0])); body.addEventListener('touchmove', e=>{onMove(e.touches[0]); e.preventDefault();},{passive:false}); body.addEventListener('touchend', onUp);
+    document.body.addEventListener('mousedown', onDown); document.body.addEventListener('mousemove', onMove); document.body.addEventListener('mouseup', onUp); document.body.addEventListener('mouseleave', onUp);
+    document.body.addEventListener('touchstart', e=>onDown(e.touches[0])); document.body.addEventListener('touchmove', e=>{onMove(e.touches[0]); e.preventDefault();},{passive:false}); document.body.addEventListener('touchend', onUp);
   })();
 
-  /* ===== STATO ===== */
-  const STORE = 'planner_bullets_v2';
+  /* ===== Planner state ===== */
+  const STORE = 'planner_stable_v1';
   const SECTS = ['visit','stay','travel','notes'];
   const LABELS = { visit:'Luoghi da visitare', stay:'Alloggio', travel:'Voli / Spostamenti', notes:'Note' };
   function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'[]'); }catch{ return []; } }
@@ -44,11 +47,11 @@
   function fdate(iso){
     const d = new Date(iso+'T12:00:00');
     const w = d.toLocaleDateString('it-IT',{weekday:'long'});
-    const W = w.charAt(0).toUpperCase()+w.slice(1);
+    const W = w ? (w.charAt(0).toUpperCase()+w.slice(1)) : '';
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
     const yy = String(d.getFullYear()).slice(-2);
-    return `${W} ${dd}/${mm}/${yy}`;
+    return `${W} ${dd}/${mm}/${yy}`.trim();
   }
 
   let lastEditor = null;
@@ -81,17 +84,16 @@
         </div>`;
       root.appendChild(card);
 
-      // hydrate editors as UL>LI with caret ready
+      // hydrate editors as UL>LI; also hydrate attachments placeholders
       SECTS.forEach(key=>{
         const ed=$('.editor[data-key="'+key+'"]', card);
         const saved = d.html[key];
         if(saved && saved.trim()){
           ed.innerHTML = saved;
-          ensureCaret(ed);
         }else{
           ed.innerHTML = '<ul class="list"><li>\u200B</li></ul>';
-          placeCaretIntoFirstLi(ed);
         }
+        hydrateInlineFiles(ed); // convert data-dbkey to actual URLs and listeners
         ed.addEventListener('focus', ()=>{ lastEditor = ed; ensureList(ed); });
         ed.addEventListener('keydown', (e)=>{
           if(e.key==='Enter' && !e.shiftKey){
@@ -116,25 +118,37 @@
         lbl.textContent = fdate(day.dateISO); lbl.style.display='inline'; inp.style.display='none';
       });
 
-      // Attachments -> insert at caret in last focused editor
+      // Attachments -> insert placeholder at caret in last focused editor
       $('.attach', card).addEventListener('click', ()=>{
         const target = lastEditor || $('.editor[data-key="visit"]',card);
         const input=document.createElement('input'); input.type='file'; input.accept='image/*,.pdf';
         input.onchange = async ()=>{
           const f=input.files[0]; if(!f || !target) return;
           const dbKey = `d${d.id}-${Date.now()}-${f.name}-${f.size}`;
-          if(window.AttachmentsDB){ await window.AttachmentsDB.put(dbKey, f); }
-          const url = URL.createObjectURL(f);
-          if(f.type && f.type.startsWith('image/')){
-            const img=document.createElement('img'); img.src=url; img.alt=f.name; img.className='inline-thumb'; img.dataset.dbkey=dbKey;
-            img.addEventListener('click',()=>{ if(window.InlineViewer){ window.InlineViewer.open(url, f.type); }else{ window.open(url,'_blank'); } });
-            insertNodeInCurrentLi(target, img);
-          }else{
-            const a=document.createElement('a'); a.href='#'; a.textContent=f.name; a.className='inline-file'; a.dataset.dbkey=dbKey;
-            a.addEventListener('click', (e)=>{ e.preventDefault(); if(window.InlineViewer){ window.InlineViewer.open(url, f.type||'application/pdf'); }else{ window.open(url,'_blank'); } });
-            insertNodeInCurrentLi(target, a);
+          try{
+            await window.AttachmentsDB.put(dbKey, f);
+            // create a placeholder element with data-dbkey
+            if(f.type && f.type.startsWith('image/')){
+              const img=document.createElement('img');
+              img.setAttribute('data-dbkey', dbKey);
+              img.setAttribute('data-type', f.type);
+              img.setAttribute('alt', f.name);
+              img.className='inline-thumb';
+              insertNodeInCurrentLi(target, img);
+            }else{
+              const a=document.createElement('a');
+              a.href='#';
+              a.textContent=f.name;
+              a.className='inline-file';
+              a.setAttribute('data-dbkey', dbKey);
+              a.setAttribute('data-type', f.type||'application/pdf');
+              insertNodeInCurrentLi(target, a);
+            }
+            hydrateInlineFiles(target); // resolve to object URLs and bind viewer
+            persist();
+          }catch(e){
+            alert('Errore nel salvataggio allegato: '+e);
           }
-          persist();
         };
         input.click();
       });
@@ -152,7 +166,26 @@
     };
   }
 
-  /* ===== Bullet helpers (robuste per Safari/Chrome) ===== */
+  /* ===== Hydration for inline files ===== */
+  async function hydrateInlineFiles(container){
+    const nodes = $$('[data-dbkey]', container);
+    for(const el of nodes){
+      const key = el.getAttribute('data-dbkey'); const type = el.getAttribute('data-type')||'';
+      try{
+        const blob = await window.AttachmentsDB.get(key);
+        if(!blob) continue;
+        const url = URL.createObjectURL(blob);
+        if(el.tagName==='IMG'){
+          el.src = url;
+          el.onclick = ()=>{ if(window.InlineViewer){ window.InlineViewer.open(url, type); } else { window.open(url,'_blank'); } };
+        }else{ // anchor
+          el.onclick = (e)=>{ e.preventDefault(); if(window.InlineViewer){ window.InlineViewer.open(url, type); } else { window.open(url,'_blank'); } };
+        }
+      }catch(e){ /* ignore hydration error */ }
+    }
+  }
+
+  /* ===== Bullet helpers robusti ===== */
   function ensureList(ed){
     if(!ed.querySelector('ul')){
       ed.innerHTML = '<ul class="list"><li>\u200B</li></ul>';
@@ -167,7 +200,7 @@
     const cur = getCurrentLi(ed) || placeNewLiIfNeeded(ed);
     const ul = cur.parentNode;
     const li = document.createElement('li');
-    li.appendChild(document.createTextNode('\u200B')); // zero-width space so caret has a text node
+    li.appendChild(document.createTextNode('\u200B'));
     if(cur.nextSibling) ul.insertBefore(li, cur.nextSibling); else ul.appendChild(li);
     placeCaretAtEnd(li);
   }
