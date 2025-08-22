@@ -33,7 +33,7 @@
   })();
 
   /* ===== STATO ===== */
-  const STORE = 'planner_final_inline';
+  const STORE = 'planner_bullets_v1';
   const SECTS = ['visit','stay','travel','notes'];
   const LABELS = { visit:'Luoghi da visitare', stay:'Alloggio', travel:'Voli / Spostamenti', notes:'Note' };
   function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'[]'); }catch{ return []; } }
@@ -41,7 +41,15 @@
 
   function ensureState(){ let s=load(); if(s.length===0){ s.push(makeDay(new Date())); save(s);} return s; }
   function makeDay(date){ return { id: Date.now()+Math.random(), dateISO: date.toISOString().slice(0,10), html: {visit:'',stay:'',travel:'',notes:''} }; }
-  function fdate(iso){ const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+  function fdate(iso){
+    const d = new Date(iso+'T12:00:00');
+    const w = d.toLocaleDateString('it-IT',{weekday:'long'});
+    const W = w.charAt(0).toUpperCase()+w.slice(1);
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const yy = d.getFullYear();
+    return `${W} ${dd}/${mm}/${yy}`;
+  }
 
   let lastEditor = null;
 
@@ -52,9 +60,9 @@
       const card=document.createElement('section'); card.className='day-card'; card.dataset.id=d.id;
       card.innerHTML=`
         <div class="toprow">
-          <div class="pill">
-            <span class="pill-date" role="button" title="Clicca per modificare la data">${fdate(d.dateISO)}</span>
-            <input class="pill-edit" type="date" value="${d.dateISO}">
+          <div class="left">
+            <span class="date-label" role="button" title="Clicca per modificare la data">${fdate(d.dateISO)}</span>
+            <input class="date-input" type="date" value="${d.dateISO}" style="display:none">
           </div>
           <div class="dayno">Giorno ${i+1}</div>
         </div>
@@ -73,26 +81,37 @@
         </div>`;
       root.appendChild(card);
 
-      // hydrate editors
+      // hydrate editors as UL>LI
       SECTS.forEach(key=>{
         const ed=$('.editor[data-key="'+key+'"]', card);
-        ed.innerHTML = d.html[key] || lineHTML(''); // at least one bullet line
+        const saved = d.html[key];
+        if(saved){ ed.innerHTML = saved; }
+        else{ ed.innerHTML = '<ul class="list"><li><br></li></ul>'; }
         ed.addEventListener('focus', ()=>{ lastEditor = ed; });
         ed.addEventListener('keydown', (e)=>{
           if(e.key==='Enter' && !e.shiftKey){
-            e.preventDefault(); insertBulletAtCaret(ed); persist();
-          } // Shift+Enter = plain <br> (no handler)
+            e.preventDefault();
+            insertNewLi(ed);
+            persist();
+          }else if(e.key==='Enter' && e.shiftKey){
+            e.preventDefault();
+            insertBr(ed);
+            persist();
+          }
         });
         ed.addEventListener('input', persist);
       });
+
       function persist(){ const s=load(); const day=s.find(x=>x.id===d.id); SECTS.forEach(k=>{ day.html[k] = $('.editor[data-key="'+k+'"]', card).innerHTML; }); save(s); }
 
-      // date toggle
-      const pill=card.querySelector('.pill'); const v=$('.pill-date',pill); const inp=$('.pill-edit',pill);
-      v.addEventListener('click', ()=>{ pill.classList.add('editing'); inp.style.display='inline-block'; inp.focus(); });
-      inp.addEventListener('blur', ()=>{ const s=load(); const day=s.find(x=>x.id===d.id); day.dateISO = inp.value || day.dateISO; save(s); pill.classList.remove('editing'); inp.style.display='none'; v.textContent=fdate(day.dateISO); });
+      // Date toggle behavior
+      const lbl=$('.date-label',card), inp=$('.date-input',card);
+      lbl.addEventListener('click', ()=>{ lbl.style.display='none'; inp.style.display='inline-block'; inp.focus(); });
+      inp.addEventListener('blur', ()=>{ const s=load(); const day=s.find(x=>x.id===d.id); day.dateISO = inp.value || day.dateISO; save(s);
+        lbl.textContent = fdate(day.dateISO); lbl.style.display='inline'; inp.style.display='none';
+      });
 
-      // ONE clip per day: inserts into last focused editor
+      // Attachments -> insert at caret in last focused editor
       $('.attach', card).addEventListener('click', ()=>{
         const target = lastEditor || $('.editor[data-key="visit"]',card);
         const input=document.createElement('input'); input.type='file'; input.accept='image/*,.pdf';
@@ -115,7 +134,7 @@
         input.click();
       });
 
-      // dup/del
+      // Dup/Del
       $('.dup', card).addEventListener('click', ()=>{ const s=load(); const idx=s.findIndex(x=>x.id===d.id);
         const copy=JSON.parse(JSON.stringify(d)); copy.id=Date.now()+Math.random(); s.splice(idx+1,0,copy); save(s); render(); });
       $('.del', card).addEventListener('click', ()=>{ const s=load().filter(x=>x.id!==d.id); save(s); render(); });
@@ -128,20 +147,48 @@
     };
   }
 
-  function lineHTML(text){ const safe=String(text||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'); return `<div class="line">${safe}</div>`; }
-  function insertBulletAtCaret(ed){
-    const sel=window.getSelection(); const range=(sel && sel.rangeCount)? sel.getRangeAt(0) : null;
-    const node = htmlToNode(lineHTML(''));
-    if(range && ed.contains(range.startContainer)){ range.collapse(false); range.insertNode(node); range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range); }
-    else{ ed.appendChild(node); placeCaretAfter(node); }
+  /* ===== List helpers ===== */
+  function getCurrentLi(ed){
+    const sel=window.getSelection();
+    if(!sel || !sel.rangeCount) return null;
+    let node=sel.anchorNode;
+    while(node && node !== ed){
+      if(node.nodeName==='LI') return node;
+      node = node.parentNode;
+    }
+    // if outside list, ensure one
+    let ul = ed.querySelector('ul'); if(!ul){ ul=document.createElement('ul'); ul.className='list'; ed.appendChild(ul); }
+    const li = document.createElement('li'); li.appendChild(document.createElement('br')); ul.appendChild(li);
+    placeCaretAt(li, 0);
+    return li;
+  }
+  function insertNewLi(ed){
+    const cur = getCurrentLi(ed);
+    const ul = cur.parentNode;
+    const li = document.createElement('li'); li.appendChild(document.createElement('br'));
+    ul.insertBefore(li, cur.nextSibling);
+    placeCaretAt(li, 0); // caret inside new bullet ready to type
+  }
+  function insertBr(ed){
+    const sel=window.getSelection(); if(!sel) return;
+    const range=sel.getRangeAt(0);
+    const br=document.createElement('br');
+    range.insertNode(br);
+    range.setStartAfter(br); range.setEndAfter(br);
+    sel.removeAllRanges(); sel.addRange(range);
+  }
+  function placeCaretAt(node, offset){
+    const sel=window.getSelection(); const range=document.createRange();
+    range.setStart(node, offset); range.collapse(true);
+    sel.removeAllRanges(); sel.addRange(range);
   }
   function insertNodeAtCaret(ed, node){
     const sel=window.getSelection(); const range=(sel && sel.rangeCount)? sel.getRangeAt(0) : null;
     if(range && ed.contains(range.startContainer)){ range.collapse(false); range.insertNode(node); range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range); }
-    else{ ed.appendChild(node); placeCaretAfter(node); }
+    else{ // if no selection, append into current li or create one
+      const cur = getCurrentLi(ed); cur.appendChild(node); placeCaretAt(cur, cur.childNodes.length);
+    }
   }
-  function htmlToNode(html){ const tmp=document.createElement('div'); tmp.innerHTML=html.trim(); return tmp.firstChild; }
-  function placeCaretAfter(node){ const sel=window.getSelection(); const range=document.createRange(); range.setStartAfter(node); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
 
   document.addEventListener('DOMContentLoaded', render);
-})();
+})(); 
