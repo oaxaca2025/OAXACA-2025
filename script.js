@@ -33,7 +33,7 @@
   })();
 
   /* ===== STATO ===== */
-  const STORE = 'planner_bullets_v1';
+  const STORE = 'planner_bullets_v2';
   const SECTS = ['visit','stay','travel','notes'];
   const LABELS = { visit:'Luoghi da visitare', stay:'Alloggio', travel:'Voli / Spostamenti', notes:'Note' };
   function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'[]'); }catch{ return []; } }
@@ -47,7 +47,7 @@
     const W = w.charAt(0).toUpperCase()+w.slice(1);
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
-    const yy = d.getFullYear();
+    const yy = String(d.getFullYear()).slice(-2);
     return `${W} ${dd}/${mm}/${yy}`;
   }
 
@@ -81,21 +81,26 @@
         </div>`;
       root.appendChild(card);
 
-      // hydrate editors as UL>LI
+      // hydrate editors as UL>LI with caret ready
       SECTS.forEach(key=>{
         const ed=$('.editor[data-key="'+key+'"]', card);
         const saved = d.html[key];
-        if(saved){ ed.innerHTML = saved; }
-        else{ ed.innerHTML = '<ul class="list"><li><br></li></ul>'; }
-        ed.addEventListener('focus', ()=>{ lastEditor = ed; });
+        if(saved && saved.trim()){
+          ed.innerHTML = saved;
+          ensureCaret(ed);
+        }else{
+          ed.innerHTML = '<ul class="list"><li>\u200B</li></ul>';
+          placeCaretIntoFirstLi(ed);
+        }
+        ed.addEventListener('focus', ()=>{ lastEditor = ed; ensureList(ed); });
         ed.addEventListener('keydown', (e)=>{
           if(e.key==='Enter' && !e.shiftKey){
             e.preventDefault();
-            insertNewLi(ed);
+            insertNewLiWithCursor(ed);
             persist();
           }else if(e.key==='Enter' && e.shiftKey){
             e.preventDefault();
-            insertBr(ed);
+            insertBrInCurrentLi(ed);
             persist();
           }
         });
@@ -123,11 +128,11 @@
           if(f.type && f.type.startsWith('image/')){
             const img=document.createElement('img'); img.src=url; img.alt=f.name; img.className='inline-thumb'; img.dataset.dbkey=dbKey;
             img.addEventListener('click',()=>{ if(window.InlineViewer){ window.InlineViewer.open(url, f.type); }else{ window.open(url,'_blank'); } });
-            insertNodeAtCaret(target, img);
+            insertNodeInCurrentLi(target, img);
           }else{
             const a=document.createElement('a'); a.href='#'; a.textContent=f.name; a.className='inline-file'; a.dataset.dbkey=dbKey;
             a.addEventListener('click', (e)=>{ e.preventDefault(); if(window.InlineViewer){ window.InlineViewer.open(url, f.type||'application/pdf'); }else{ window.open(url,'_blank'); } });
-            insertNodeAtCaret(target, a);
+            insertNodeInCurrentLi(target, a);
           }
           persist();
         };
@@ -147,7 +152,40 @@
     };
   }
 
-  /* ===== List helpers ===== */
+  /* ===== Bullet helpers (robuste per Safari/Chrome) ===== */
+  function ensureList(ed){
+    if(!ed.querySelector('ul')){
+      ed.innerHTML = '<ul class="list"><li>\u200B</li></ul>';
+      placeCaretIntoFirstLi(ed);
+    }
+  }
+  function placeCaretIntoFirstLi(ed){
+    const li = ed.querySelector('li') || (function(){ const ul=document.createElement('ul'); ul.className='list'; const li=document.createElement('li'); li.appendChild(document.createTextNode('\u200B')); ul.appendChild(li); ed.appendChild(ul); return li; })();
+    placeCaretAtEnd(li);
+  }
+  function insertNewLiWithCursor(ed){
+    const cur = getCurrentLi(ed) || placeNewLiIfNeeded(ed);
+    const ul = cur.parentNode;
+    const li = document.createElement('li');
+    li.appendChild(document.createTextNode('\u200B')); // zero-width space so caret has a text node
+    if(cur.nextSibling) ul.insertBefore(li, cur.nextSibling); else ul.appendChild(li);
+    placeCaretAtEnd(li);
+  }
+  function insertBrInCurrentLi(ed){
+    const li = getCurrentLi(ed) || placeNewLiIfNeeded(ed);
+    const br=document.createElement('br');
+    li.appendChild(br);
+    placeCaretAtEnd(li);
+  }
+  function insertNodeInCurrentLi(ed, node){
+    const li = getCurrentLi(ed) || placeNewLiIfNeeded(ed);
+    li.appendChild(node);
+    placeCaretAfter(node);
+  }
+  function placeNewLiIfNeeded(ed){
+    let ul = ed.querySelector('ul'); if(!ul){ ul=document.createElement('ul'); ul.className='list'; ed.appendChild(ul); }
+    const li = document.createElement('li'); li.appendChild(document.createTextNode('\u200B')); ul.appendChild(li); return li;
+  }
   function getCurrentLi(ed){
     const sel=window.getSelection();
     if(!sel || !sel.rangeCount) return null;
@@ -156,38 +194,17 @@
       if(node.nodeName==='LI') return node;
       node = node.parentNode;
     }
-    // if outside list, ensure one
-    let ul = ed.querySelector('ul'); if(!ul){ ul=document.createElement('ul'); ul.className='list'; ed.appendChild(ul); }
-    const li = document.createElement('li'); li.appendChild(document.createElement('br')); ul.appendChild(li);
-    placeCaretAt(li, 0);
-    return li;
+    return null;
   }
-  function insertNewLi(ed){
-    const cur = getCurrentLi(ed);
-    const ul = cur.parentNode;
-    const li = document.createElement('li'); li.appendChild(document.createElement('br'));
-    ul.insertBefore(li, cur.nextSibling);
-    placeCaretAt(li, 0); // caret inside new bullet ready to type
-  }
-  function insertBr(ed){
-    const sel=window.getSelection(); if(!sel) return;
-    const range=sel.getRangeAt(0);
-    const br=document.createElement('br');
-    range.insertNode(br);
-    range.setStartAfter(br); range.setEndAfter(br);
-    sel.removeAllRanges(); sel.addRange(range);
-  }
-  function placeCaretAt(node, offset){
+  function placeCaretAtEnd(node){
     const sel=window.getSelection(); const range=document.createRange();
-    range.setStart(node, offset); range.collapse(true);
+    range.selectNodeContents(node); range.collapse(false);
     sel.removeAllRanges(); sel.addRange(range);
   }
-  function insertNodeAtCaret(ed, node){
-    const sel=window.getSelection(); const range=(sel && sel.rangeCount)? sel.getRangeAt(0) : null;
-    if(range && ed.contains(range.startContainer)){ range.collapse(false); range.insertNode(node); range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range); }
-    else{ // if no selection, append into current li or create one
-      const cur = getCurrentLi(ed); cur.appendChild(node); placeCaretAt(cur, cur.childNodes.length);
-    }
+  function placeCaretAfter(node){
+    const sel=window.getSelection(); const range=document.createRange();
+    range.setStartAfter(node); range.collapse(true);
+    sel.removeAllRanges(); sel.addRange(range);
   }
 
   document.addEventListener('DOMContentLoaded', render);
