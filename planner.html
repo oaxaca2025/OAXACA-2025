@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Planner — OAXACA 2025</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="viewer.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0b0b">
+</head>
+<body class="planner-body">
+  <div class="topbar">
+    <h1 class="title-common title">OAXACA 2025</h1>
+    <div class="actions">
+      <a href="index.html" class="link-white">Torna all'inizio</a>
+      <button class="link-white" id="btnAdd">Aggiungi giorno</button>
+      <div class="menu" id="plannerMenu">
+        <button class="menu-btn" aria-label="Menu">☰</button>
+        <div class="menu-list">
+          <div class="menu-item" id="plUpload">Carica sfondo</div>
+          <div class="menu-item" id="plFit">Adatta sfondo: <span id="plFitState">Riempie</span></div>
+          <div class="menu-item" id="plMove">Sposta sfondo: <span id="plMoveState">Off</span></div>
+        </div>
+      </div>
+      <input id="bgInput" type="file" accept="image/*" class="hidden-input">
+    </div>
+  </div>
+
+  <!-- Viewer -->
+  <div class="viewer" id="viewer" aria-hidden="true">
+    <div class="inner">
+      <div class="vtoolbar">
+        <button class="vbtn" id="vtFit" title="Adatta">⤢</button>
+        <button class="vbtn" id="vtZoomIn" title="Zoom +">＋</button>
+        <button class="vbtn" id="vtZoomOut" title="Zoom −">－</button>
+        <button class="vbtn" id="vtRotate" title="Ruota">⟳</button>
+        <button class="vbtn" id="vtNewTab" title="Apri in nuova scheda">↗︎</button>
+        <a class="vbtn" id="vtDownload" title="Scarica" download>⬇︎</a>
+        <button class="vbtn close" id="viewerClose" title="Chiudi">✕</button>
+      </div>
+      <div id="viewerContent"></div>
+    </div>
+  </div>
+
+  <main id="planner" aria-live="polite"></main>
+
+  <script src="attachments-indexeddb.js"></script>
+  <script src="viewer.js"></script>
+  <script src="script.js"></script>
+  <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./service-worker.js',{scope:'./'});}</script>
+</body>
+</html>

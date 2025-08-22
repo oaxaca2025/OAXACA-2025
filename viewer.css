@@ -1,0 +1,9 @@
+:root{--v-bg:rgba(0,0,0,.88)}
+.viewer{position:fixed;inset:0;background:var(--v-bg);display:none;align-items:center;justify-content:center}
+.viewer.show{display:flex}
+.viewer .inner{position:relative;max-width:96vw;max-height:92vh}
+.vtoolbar{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:8px;justify-content:flex-end}
+.vbtn{border:0;background:#1f1f1f;color:#fff;padding:8px 10px;border-radius:10px;cursor:pointer}
+.vbtn.close{background:#7f1d1d}
+#viewerContent{background:#000;display:flex;align-items:center;justify-content:center;min-width:60vw;min-height:60vh;max-height:82vh;overflow:hidden;border-radius:12px}
+#viewerContent img,#viewerContent iframe{max-width:100%;max-height:82vh;display:block}
