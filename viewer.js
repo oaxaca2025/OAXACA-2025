@@ -4,9 +4,9 @@
   const btnClose = el('viewerClose'); const btnFit = el('vtFit');
   const btnIn = el('vtZoomIn'); const btnOut = el('vtZoomOut'); const btnRot = el('vtRotate');
   const btnNew = el('vtNewTab'); const aDl = el('vtDownload');
-  let scale = 1, rot = 0, currentSrc = null;
+  let scale = 1, rot = 0, currentSrc = null, currentType = '';
   function show(src, mime){
-    content.innerHTML = ''; currentSrc = src; aDl.href = src;
+    content.innerHTML = ''; currentSrc = src; currentType = mime || ''; aDl.href = src;
     if(mime && mime.includes('pdf')){ const iframe = document.createElement('iframe'); iframe.src = src; content.appendChild(iframe); }
     else{ const img = document.createElement('img'); img.src = src; img.alt = 'Allegato'; content.appendChild(img); }
     scale = 1; rot = 0; apply(); viewer.classList.add('show'); viewer.setAttribute('aria-hidden','false');
