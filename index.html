@@ -1,40 +1,102 @@
-<!DOCTYPE html><html lang="it"><head>
-<meta charset="UTF-8"><title>OAXACA 2025</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css"><meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0b0b0b"></head>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>OAXACA 2025</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=home3">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0b0b">
+</head>
 <body class="intro-body">
-<div class="intro-topbar"><div class="menu" id="introMenu">
-<button class="menu-btn" aria-label="Menu">☰</button>
-<div class="menu-list">
-<div class="menu-item" id="introUpload">Carica foto</div>
-<div class="menu-item" id="introFit">Adatta sfondo: <span id="introFitState">Riempie</span></div>
-<div class="menu-item" id="introMove">Sposta sfondo: <span id="introMoveState">Off</span></div>
-</div></div><input id="fileInput" class="hidden-input" type="file" accept="image/*"></div>
-<h1 class="title-common intro-title">OAXACA 2025</h1>
-<div class="intro-links"><a class="link" href="planner.html">Inizia a pianificare</a></div>
+  <div class="intro-topbar">
+    <div class="menu" id="introMenu">
+      <button class="menu-btn" aria-label="Menu">☰</button>
+      <div class="menu-list">
+        <div class="menu-item" id="introUpload">Carica foto</div>
+        <div class="menu-item" id="introFit">Adatta sfondo: <span id="introFitState">Riempie</span></div>
+        <div class="menu-item" id="introMove">Sposta sfondo: <span id="introMoveState">Off</span></div>
+      </div>
+    </div>
+    <input id="fileInput" class="hidden-input" type="file" accept="image/*">
+  </div>
+
+  <h1 class="title-common intro-title">OAXACA 2025</h1>
+
+  <div class="intro-links">
+    <a class="link" href="planner.html">Inizia a pianificare</a>
+  </div>
+
 <script>
 const BG='plannerBackground', MODE='plannerBgMode', POSX='plannerBgX', POSY='plannerBgY';
-const html=document.documentElement, menu=document.getElementById('introMenu'), btn=menu.querySelector('.menu-btn');
-const fileInput=document.getElementById('fileInput'); const fitState=document.getElementById('introFitState'); const moveState=document.getElementById('introMoveState');
-btn.addEventListener('click', ()=> menu.classList.toggle('open')); document.addEventListener('click', e=>{ if(!menu.contains(e.target)) menu.classList.remove('open'); });
+const html=document.documentElement;
+const menu=document.getElementById('introMenu');
+const btn=menu.querySelector('.menu-btn');
+const fileInput=document.getElementById('fileInput');
+const fitState=document.getElementById('introFitState');
+const moveState=document.getElementById('introMoveState');
+
+btn.addEventListener('click', ()=>{ menu.classList.toggle('open'); });
+document.addEventListener('click', (e)=>{ if(!menu.contains(e.target)) menu.classList.remove('open'); });
+
 let moving=false, startX=0, startY=0, baseX=parseInt(localStorage.getItem(POSX)||'50'), baseY=parseInt(localStorage.getItem(POSY)||'50');
-function applyBg(){ const saved=localStorage.getItem(BG); if(saved) html.style.backgroundImage='url('+saved+')';
-  const mode=localStorage.getItem(MODE)||'cover'; html.style.backgroundSize=mode; html.style.backgroundPosition=baseX+'% '+baseY+'%';
-  fitState.textContent=mode==='cover'?'Riempie':'Contiene'; moveState.textContent=moving?'On':'Off'; }
-addEventListener('pageshow', applyBg); applyBg();
-document.getElementById('introUpload').onclick=()=>fileInput.click();
-fileInput.onchange=(e)=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=(ev)=>{ const img=ev.target.result; html.style.backgroundImage='url('+img+')'; localStorage.setItem(BG,img); }; r.readAsDataURL(f); fileInput.value=''; };
-document.getElementById('introFit').onclick=()=>{ const cur=localStorage.getItem(MODE)||'cover'; const nxt=cur==='cover'?'contain':'cover'; localStorage.setItem(MODE,nxt); applyBg(); };
-document.getElementById('introMove').onclick=()=>{ moving=!moving; applyBg(); };
+
+function applyBg(){
+  const saved=localStorage.getItem(BG);
+  if(saved) html.style.backgroundImage='url('+saved+')';
+  const mode=localStorage.getItem(MODE)||'cover';
+  html.style.backgroundSize=mode;
+  html.style.backgroundPosition=baseX+'% '+baseY+'%';
+  fitState.textContent = mode==='cover'?'Riempie':'Contiene';
+  moveState.textContent = moving?'On':'Off';
+}
+addEventListener('pageshow', applyBg);
+applyBg();
+
+document.getElementById('introUpload').addEventListener('click', ()=> fileInput.click());
+fileInput.addEventListener('change', (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=(ev)=>{ const img=ev.target.result; html.style.backgroundImage='url('+img+')'; localStorage.setItem(BG,img); };
+  r.readAsDataURL(f);
+  fileInput.value='';
+});
+
+document.getElementById('introFit').addEventListener('click', ()=>{
+  const cur=localStorage.getItem(MODE)||'cover';
+  const nxt=cur==='cover'?'contain':'cover';
+  localStorage.setItem(MODE, nxt);
+  applyBg();
+});
+
+document.getElementById('introMove').addEventListener('click', ()=>{ moving=!moving; applyBg(); });
+
 function onDown(e){ if(!moving) return; startX=e.clientX; startY=e.clientY; html.dataset.drag='1'; }
-function onMove(e){ if(!moving || !html.dataset.drag) return; const dx=e.clientX-startX, dy=e.clientY-startY; const nx=Math.max(0,Math.min(100, baseX+dx*0.1)); const ny=Math.max(0,Math.min(100, baseY+dy*0.1)); html.style.backgroundPosition=nx+'% '+ny+'%'; }
-function onUp(){ if(!moving) return; delete html.dataset.drag; const pos=getComputedStyle(html).backgroundPosition.split(' ');
-  baseX=Math.round(parseFloat(pos[0])); baseY=Math.round(parseFloat(pos[1])); localStorage.setItem(POSX,baseX); localStorage.setItem(POSY,baseY); applyBg(); }
-html.addEventListener('mousedown', onDown); html.addEventListener('mousemove', onMove); html.addEventListener('mouseup', onUp); html.addEventListener('mouseleave', onUp);
-html.addEventListener('touchstart', e=>onDown(e.touches[0])); html.addEventListener('touchmove', e=>{onMove(e.touches[0]); e.preventDefault();},{passive:false}); html.addEventListener('touchend', onUp);
+function onMove(e){
+  if(!moving || !html.dataset.drag) return;
+  const dx=e.clientX-startX, dy=e.clientY-startY;
+  const nx=Math.max(0, Math.min(100, baseX + dx*0.1));
+  const ny=Math.max(0, Math.min(100, baseY + dy*0.1));
+  html.style.backgroundPosition=nx+'% '+ny+'%';
+}
+function onUp(){
+  if(!moving) return;
+  delete html.dataset.drag;
+  const pos=getComputedStyle(html).backgroundPosition.split(' ');
+  const nx=Math.round(parseFloat(pos[0])); const ny=Math.round(parseFloat(pos[1]));
+  baseX=nx; baseY=ny; localStorage.setItem(POSX, baseX); localStorage.setItem(POSY, baseY);
+  applyBg();
+}
+html.addEventListener('mousedown', onDown);
+html.addEventListener('mousemove', onMove);
+html.addEventListener('mouseup', onUp);
+html.addEventListener('mouseleave', onUp);
+html.addEventListener('touchstart', (e)=> onDown(e.touches[0]));
+html.addEventListener('touchmove', (e)=>{ onMove(e.touches[0]); e.preventDefault(); }, {passive:false});
+html.addEventListener('touchend', onUp);
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./service-worker.js',{scope:'./'});}</script>
-</body></html>
+</body>
+</html>
